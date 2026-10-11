@@ -37,27 +37,31 @@ Filament writes ISO images to USB drives, formats drives as
 FAT32/exFAT, and wipes drives. One C file. TUI or CLI. libc and
 ncurses, nothing else.
 
-It refuses to touch mounted devices or the disk holding `/`. It makes
-you type the device name before anything destructive. It tells you
-when the kernel is still buffering writes instead of inventing a
-speed number.
+It refuses to touch mounted devices or any disk with a system mount.
+It makes you type the device name before anything destructive. It
+tells you when the kernel is still buffering writes instead of
+inventing a speed number.
 
 ## Features
 
 - Write ISO images: raw write, configurable block size, progress,
   speed, ETA
-- Verify after write: byte-for-byte, mandatory
+- Verify after write: byte-for-byte, mandatory unless `--no-verify`
 - SHA-256 hashing: optional, off by default, source and target
+- Compressed sources: `.gz`, `.xz`, `.bz2`, `.zst` decompressed on
+  the fly
 - Format: FAT32, VFAT, exFAT
 - Partition tables: MBR, GPT
 - Quick wipe: first 1 MB
 - Full zero: entire device
 - Safety checks: refuses mounted devices and system disks
 - Device name confirmation for anything destructive
-- Filesystem detection: FAT32, exFAT, NTFS; partition table type
+- Filesystem detection: FAT32, exFAT, NTFS, ext; partition table type
 - Multi-device listing of removable USB devices
 - File browser with hidden-file toggle
 - Full CLI mode
+- Scripting flags: `--yes`, `--quiet`, `--log=FILE`
+- Source hash verification against a `.sha256` file before writing
 - SIGINT handling
 - Honest progress: `buffering...` until writes block, then real
   device speed
@@ -114,7 +118,7 @@ sudo ./filament
 | `F` | Cycle filesystem (FAT32 / VFAT / exFAT) |
 | `T` | Toggle partition table (MBR / GPT) |
 | `L` | Set volume label |
-| `Enter` | Start |
+| `Enter` | Start (asks for device name) |
 | `Backspace` | Back |
 
 ### Wipe/zero
@@ -133,6 +137,7 @@ Destructive operations require typing the device name (`sdb`).
 filament --version
 filament --help
 filament --list
+filament --list-partitions /dev/sdb
 
 sudo filament --write /dev/sdb image.iso
 sudo filament --write /dev/sdb image.iso --sha256
@@ -140,6 +145,8 @@ sudo filament --write /dev/sdb image.iso --no-verify
 sudo filament --write /dev/sdb image.iso --dry-run
 sudo filament --write /dev/sdb image.iso --unmount
 sudo filament --write /dev/sdb image.iso --block-size=1048576
+sudo filament --write /dev/sdb image.iso.gz
+sudo filament --write /dev/sdb image.iso --verify-source=image.iso.sha256
 
 sudo filament --wipe /dev/sdb
 sudo filament --zero /dev/sdb
@@ -149,6 +156,16 @@ sudo filament --format /dev/sdb --exfat --gpt --label=MYUSB
 ```
 
 Block size: 4096 to 67108864 bytes.
+
+### Global flags
+
+| Flag | Effect |
+|------|--------|
+| `--yes` | Skip interactive confirmation. Required for non-tty. |
+| `--quiet` | Suppress progress output. |
+| `--log=FILE` | Append an audit log. |
+
+Destructive CLI operations prompt for `yes` unless `--yes` is given.
 
 ## Slow USB sticks
 
@@ -184,15 +201,21 @@ Formatting shells out. Nothing else does.
 | Format FAT32 / VFAT | `mkfs.vfat` (dosfstools) |
 | Format exFAT | `mkfs.exfat` (exfatprogs) or `mkexfatfs` (exfat-utils) |
 
+Compressed sources shell out to `gzip`, `xz`, `bzip2`, or `zstd`.
 Write, verify, wipe, zero, list, and the TUI do not touch external
 tools. Missing formatters means formatting fails; everything else
 works.
 
+Format always unmounts the target first.
+
 ## Safety
 
 - Mounted device check: refuses anything mounted
-- System disk check: refuses devices containing `/` or `/boot`
+- System disk check: refuses any disk with a mount outside `/media`,
+  `/run/media`, or `/mnt`
 - Device name confirmation: type `sdb` before anything destructive
+  (TUI)
+- `yes` prompt in CLI unless `--yes` is passed
 - Dry run: `--dry-run` shows what would happen
 - Clear identification: model, serial, size, filesystem, partition
   table

@@ -30,7 +30,7 @@ static void handle_sigint(int sig) {
 #define MAX_PARTS 16
 #define WIPE_SIZE (1024 * 1024)
 #define SECTOR_SIZE 512
-#define FILAMENT_VERSION "1.0.2"
+#define FILAMENT_VERSION "1.1.0"
 
 static int tui_mode = 0;
 static size_t block_size = DEFAULT_BLOCK_SIZE;
